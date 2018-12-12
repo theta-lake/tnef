@@ -1,10 +1,11 @@
 // Package tnef extracts the body and attachments from Microsoft TNEF files.
-package tnef // import "github.com/teamwork/tnef"
+package tnef
 
 import (
 	"errors"
 	"io/ioutil"
 	"strings"
+	"bytes"
 )
 
 const (
@@ -76,6 +77,7 @@ type Data struct {
 	BodyHTML    []byte
 	Attachments []*Attachment
 	Attributes  []MAPIAttribute
+	MessageClass []byte
 }
 
 func (a *Attachment) addAttr(obj tnefObject) {
@@ -116,7 +118,9 @@ func Decode(data []byte) (*Data, error) {
 		obj := decodeTNEFObject(data[offset:])
 		offset += obj.Length
 
-		if obj.Name == ATTATTACHRENDDATA {
+		if obj.Name == ATTMESSAGECLASS {
+			tnef.MessageClass = bytes.TrimRight(obj.Data, "\x00")
+		} else if obj.Name == ATTATTACHRENDDATA {
 			attachment = new(Attachment)
 			tnef.Attachments = append(tnef.Attachments, attachment)
 		} else if obj.Level == lvlAttachment {
