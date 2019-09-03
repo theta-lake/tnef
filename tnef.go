@@ -7,7 +7,7 @@ import (
 	"strings"
 	"bytes"
 	"unicode/utf8"
-//	"fmt"
+	"fmt"
 //	"encoding/hex"
 )
 
@@ -266,8 +266,11 @@ func Decode(data []byte) (*Data, error) {
 					MAPI ATTR ID: 13327 (0x340f), TAG Type: 3 (0x3) -> ??? | value: 245710845
 				 */
 
-
-				attachment.Properties = decodeMsgPropertyList(obj.Data)
+				var err error
+				attachment.Properties, err = decodeMsgPropertyList(obj.Data)
+				if err != nil {
+					return nil, err
+				}
 				//fmt.Printf("%v / %x\r\n", obj.Name, obj.Name)
 				//fmt.Printf("%v", obj.Data)
 			} else {
@@ -337,7 +340,7 @@ func decodeTNEFObject(data []byte) (object tnefObject) {
  * @param  {[type]} data []byte)       (MsgPropertyList [description]
  * @return {[type]}      [description]
  */
-func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
+func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 
 	list := MsgPropertyList{Values: []*MsgPropertyValue{}}
 
@@ -350,7 +353,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 	fmt.Println("------------------------")
 */
 	if len(data) < 4 {
-		return list
+		return list, fmt.Errorf("decodeMsgPropertyList: data too short")
 	}
 
 	//  MsgPropertyCount *MsgPropertyValue
@@ -566,7 +569,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 						rune, runeBytesSize, err := rdr.ReadRune()
 						if err != nil {
 							// we should return an error too
-							return list
+							return list, fmt.Errorf("decodeMsgPropertyList: error decoding %#x data type: %s", v.TagType, err)
 						}
 						tmpStr = append(tmpStr, []byte(string(rune))...)
 						offset += runeBytesSize
@@ -685,6 +688,8 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 					v.Data = tmp
 				}
 				v.DataType = "binary"
+			default:
+				return list, fmt.Errorf("decodeMsgPropertyList: data type %#x is invalid", v.TagType)
 		}
 
 		//fmt.Printf("TagId: %v Tag Type: %#x Tag Data: %v Extracted value: %v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset+100]))
@@ -697,5 +702,5 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 		}
 	}
 
-	return list
+	return list, nil
 }
