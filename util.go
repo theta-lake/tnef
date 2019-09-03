@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"bytes"
 	"unicode/utf16"
+//	"unicode/utf8"
+	"strings"
 )
 
 func byteToInt(data []byte) int {
@@ -139,6 +141,42 @@ func (c *LittleEndianReader) Utf16(content []byte, maxLengthToRead int) (convert
 		convertedStringToUnicode = string(utf16.Decode(tmp));
 
 		if (len(content) <= bytesRead || len(convertedStringToUnicode) == maxLengthToRead) {
+			break;
+		}
+	}
+	return
+}
+
+// read utf or unicode ended with 2 0x00
+func (c *LittleEndianReader) Utf16OrUnicode(content []byte, maxLengthToRead int) (convertedStringToUnicode string, bytesRead int) {
+	tmp := []uint16{}
+
+	bytesRead = 0
+	last2Chars := 0
+	for {
+		tmp = append(tmp, binary.LittleEndian.Uint16(content[bytesRead:]))
+		bytesRead += 2
+
+
+		convertedStringToUnicode = string(utf16.Decode(tmp));
+
+		if strings.HasSuffix(convertedStringToUnicode, "\x00") {
+			last2Chars++
+		} else {
+			last2Chars = 0
+		}
+
+		// utf8.RuneCountInString(convertedStringToUnicode) -> number of chars
+		// len(convertedStringToUnicode) - number of bytes
+
+//		fmt.Printf("\r\nRead %v bytes from %v bytes; String Len: %v; Rune Count: %v", bytesRead, len(content), len(convertedStringToUnicode), utf8.RuneCountInString(convertedStringToUnicode))
+//		fmt.Printf("\r\nString: %s", convertedStringToUnicode)
+
+
+		if (len(content) <= bytesRead || len(convertedStringToUnicode) == maxLengthToRead || last2Chars >= 2) {
+			if (last2Chars >= 2) {
+				convertedStringToUnicode = strings.TrimRight(convertedStringToUnicode, "\x00")
+			}
 			break;
 		}
 	}

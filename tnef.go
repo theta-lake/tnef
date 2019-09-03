@@ -595,16 +595,18 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 				noOfValues := leReader.Uint32(data[offset:offset + 4])
 				offset += 4
 
+
 				tmp := make([]string, noOfValues)
 				for i:=0;i<int(noOfValues);i++ {
 					stringLength := int(leReader.Uint32(data[offset:offset + 4]))
 					//fmt.Printf("String data length: %v Extracted Value: %v", stringLength, hex.Dump(data[offset:offset+4]))
 					offset += 4
+
 					/**
 					 * try to read stringLength chars and than calculate the number of bytes read
 					 */
 
-					tmpStr, bytesRead := leReader.Utf16(data[offset:], stringLength)
+					tmpStr, bytesRead := leReader.Utf16OrUnicode(data[offset:], stringLength)
 
 					offset += bytesRead
 
@@ -685,7 +687,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList) {
 				v.DataType = "binary"
 		}
 
-		//fmt.Printf("Tag Data: %v Extracted value: %v\r\n", v.Data, hex.Dump(data[startValueIdx:offset]))
+		//fmt.Printf("TagId: %v Tag Type: %#x Tag Data: %v Extracted value: %v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset+100]))
 
 
 		list.Values = append(list.Values, &v)
