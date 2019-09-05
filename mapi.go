@@ -559,5 +559,4 @@ const (
 	MAPIIdSecureMax                           = 0x67FF
 
 	MAPITagAttachmentHidden					  = 0x7FFE
-	MAPITagAttachMimeTag					  = 0x001E
 )
