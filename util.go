@@ -5,7 +5,8 @@ import (
 	"bytes"
 	"unicode/utf16"
 //	"unicode/utf8"
-	"strings"
+//	"strings"
+//	"fmt"
 )
 
 func byteToInt(data []byte) int {
@@ -130,41 +131,26 @@ func (c *LittleEndianReader) Boolean(b []byte) (bool) {
 	return v
 }
 
-func (c *LittleEndianReader) Utf16(content []byte, maxLengthToRead int) (convertedStringToUnicode string, bytesRead int) {
+// read utf16 little endian
+func (c *LittleEndianReader) Utf16(content []byte, maxBytesToRead int) (convertedStringToUnicode string, bytesRead int) {
 	tmp := []uint16{}
 
 	bytesRead = 0
+	//last2Chars := 0
 	for {
 		tmp = append(tmp, binary.LittleEndian.Uint16(content[bytesRead:]))
 		bytesRead += 2
 
 		convertedStringToUnicode = string(utf16.Decode(tmp));
 
-		if (len(content) <= bytesRead || len(convertedStringToUnicode) == maxLengthToRead) {
-			break;
-		}
-	}
-	return
-}
-
-// read utf or unicode ended with 2 0x00
-func (c *LittleEndianReader) Utf16OrUnicode(content []byte, maxLengthToRead int) (convertedStringToUnicode string, bytesRead int) {
-	tmp := []uint16{}
-
-	bytesRead = 0
-	last2Chars := 0
-	for {
-		tmp = append(tmp, binary.LittleEndian.Uint16(content[bytesRead:]))
-		bytesRead += 2
-
-
-		convertedStringToUnicode = string(utf16.Decode(tmp));
-
+		/*
 		if strings.HasSuffix(convertedStringToUnicode, "\x00") {
 			last2Chars++
 		} else {
 			last2Chars = 0
 		}
+		*/
+
 
 		// utf8.RuneCountInString(convertedStringToUnicode) -> number of chars
 		// len(convertedStringToUnicode) - number of bytes
@@ -173,12 +159,15 @@ func (c *LittleEndianReader) Utf16OrUnicode(content []byte, maxLengthToRead int)
 //		fmt.Printf("\r\nString: %s", convertedStringToUnicode)
 
 
-		if (len(content) <= bytesRead || len(convertedStringToUnicode) == maxLengthToRead || last2Chars >= 2) {
+		if (len(content) <= bytesRead || bytesRead >= maxBytesToRead) {
+			/*
 			if (last2Chars >= 2) {
 				convertedStringToUnicode = strings.TrimRight(convertedStringToUnicode, "\x00")
-			}
-			break;
+			}*/
+			//fmt.Printf("\r\n Return Read: %v", bytesRead)
+			break
 		}
+		//fmt.Printf("\r\n  Read: %v from maxLengthToRead %v len: %v str: %v", bytesRead, maxBytesToRead, len(convertedStringToUnicode), convertedStringToUnicode)
 	}
 	return
 }

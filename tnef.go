@@ -298,7 +298,7 @@ func Decode(data []byte) (*Data, error) {
 				}
 			}
 		} else {
-			//fmt.Printf("TNEF Flag: %x Value: %v\r\n\r\n", obj.Name, string(obj.Data))
+			//fmt.Printf("TNEF Flag: %x Value: %s\r\n\r\n", obj.Name, obj.Data)
 		}
 	}
 
@@ -375,13 +375,13 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 
 		//MsgPropertyTag = MsgPropertyType MsgPropertyId [NamedPropSpec]
 		v.TagType = leReader.Uint16(data[offset:offset+2]) // 2 bytes
-		//fmt.Printf("TAG Type: %v (%#x) Extracted Value: %v", v.TagType, v.TagType, hex.Dump(data[offset:offset+2]))
+		//fmt.Printf("\r\nTAG Type: %#x Dump:\r\n%v", v.TagType, hex.Dump(data[offset:offset+2]))
 		offset += 2
 
 
 		// tagId is MAPI Property
 		v.TagId = leReader.Uint16(data[offset:offset+2]) // 2 bytes
-		//fmt.Printf("MAPI ATTR ID: %v (%#x) Extracted Value: %v", v.TagId, v.TagId, hex.Dump(data[offset:offset+2]))
+		//fmt.Printf("\r\nTag ID: %#x Dump:\r\n%v", v.TagId, hex.Dump(data[offset:offset+2]))
 		offset += 2
 
 
@@ -601,7 +601,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 
 				tmp := make([]string, noOfValues)
 				for i:=0;i<int(noOfValues);i++ {
-					stringLength := int(leReader.Uint32(data[offset:offset + 4]))
+					stringLength := int(leReader.Uint32(data[offset:offset + 4])) // no of bytes to read
 					//fmt.Printf("String data length: %v Extracted Value: %v", stringLength, hex.Dump(data[offset:offset+4]))
 					offset += 4
 
@@ -609,15 +609,20 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 					 * try to read stringLength chars and than calculate the number of bytes read
 					 */
 
-					tmpStr, bytesRead := leReader.Utf16OrUnicode(data[offset:], stringLength)
-
+					tmpStr, bytesRead := leReader.Utf16(data[offset:], stringLength)
 					offset += bytesRead
 
+
 					// reads a multiple of 4; the rest must be padd it with 0x00
-					padd := 4 - len(tmpStr) % 4
+					padd := 4 - (bytesRead % 4)
+					//fmt.Printf("\r\nString Length To Read: %v Runes: %v", stringLength, utf8.RuneCountInString(tmpStr))
+					//fmt.Printf("\r\nString bytes read: %v", bytesRead)
 					if padd < 4 {
 						offset += padd
+						//fmt.Printf("\r\nString padd added: %v",padd)
 					}
+
+
 					tmp[i] =  strings.TrimRight(tmpStr, "\x00")
 				}
 
@@ -692,7 +697,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 				return list, fmt.Errorf("decodeMsgPropertyList: data type %#x is invalid", v.TagType)
 		}
 
-		//fmt.Printf("TagId: %v Tag Type: %#x Tag Data: %v Extracted value: %v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset+100]))
+		//fmt.Printf("\r\n\r\nTag Data: %v Extracted value:\r\n%v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset]))
 
 
 		list.Values = append(list.Values, &v)
