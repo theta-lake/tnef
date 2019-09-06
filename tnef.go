@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"unicode/utf8"
 	"fmt"
+	"regexp"
 //	"encoding/hex"
 )
 
@@ -137,19 +138,31 @@ func (c *Data) GetMapiAttribute(attrId int) (attr *MAPIAttribute) {
 }
 
 /**
- * count related attachmets; attachemnts that have Content-ID and are hidden to the user
+ * check if the attachment has a reference in html as cid
+ * @param  {[type]} a *Attachment)  IsMimeRelated( [description]
+ * @return {[type]}   [description]
  */
-func (c *Data) CountMimeRelatedAttachments() (int) {
-	result := 0
-	if len(c.Attachments) > 0 {
-		for _, a := range c.Attachments {
-			if a.IsMimeRelated() {
-				result += 1
-			}
+func (c *Data) AttachmentIsMimeRelated(a *Attachment) (bool) {
+
+	attContentIdAttr := a.GetMapiAttribute(MAPITagAttachContentId);
+	if attContentIdAttr == nil {
+		return false
+	}
+
+	cid := attContentIdAttr.Data.(string)
+
+	if c.BodyHTML != nil && len(c.BodyHTML) >0 && cid != ""  {
+		re := `('|")[\s\t\r\n]*cid[\s\t\r\n]*\:[\s\t\r\n]*` + regexp.QuoteMeta(cid) + `[\s\t\r\n]*('|")`
+		matched, err := regexp.Match(re, c.BodyHTML)
+		if err==nil && matched {
+			return true
 		}
 	}
-	return result
+
+	return false
 }
+
+
 
 func (a *Attachment) addAttr(obj tnefObject) {
 	switch obj.Name {
@@ -162,24 +175,6 @@ func (a *Attachment) addAttr(obj tnefObject) {
 	}
 }
 
-/**
- * check if the attachment should be included in a multiplart/related part
- * @param  {[type]} a *Attachment)  IsMimeRelated( [description]
- * @return {[type]}   [description]
- */
-func (a *Attachment) IsMimeRelated() (bool) {
-	isHiddenFromUserAttr := a.GetMapiAttribute(MAPITagAttachmentHidden);
-	attContentIdAttr := a.GetMapiAttribute(MAPITagAttachContentId);
-
-	result := false
-	if isHiddenFromUserAttr != nil && attContentIdAttr != nil {
-		if v, ok := isHiddenFromUserAttr.Data.(bool); ok && v && attContentIdAttr.Data.(string) != "" {
-			result = true
-		}
-	}
-
-	return result
-}
 
 // DecodeFile is a utility function that reads the file into memory
 // before calling the normal Decode function on the data.
@@ -697,7 +692,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 				return list, fmt.Errorf("decodeMsgPropertyList: data type %#x is invalid", v.TagType)
 		}
 
-		//fmt.Printf("\r\n\r\nTag Data: %v Extracted value:\r\n%v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset]))
+		//fmt.Printf("\r\n\r\nTTag ID : %#x\r\nTag Type: %#x,\r\nTag Data: %v\r\nExtracted value:\r\n%v\r\n", v.TagId, v.TagType, v.Data, hex.Dump(data[startValueIdx:offset]))
 
 
 		list.Values = append(list.Values, &v)
