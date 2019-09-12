@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"bytes"
-	"unicode/utf8"
+	//"unicode/utf8"
 	"fmt"
 	"regexp"
 //	"encoding/hex"
@@ -513,12 +513,14 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 			case 0x000D: //TypeObject -> unicode
 				noOfValues := leReader.Uint32(data[offset:offset + 4]) // should be always 1
 				offset += 4
-				tmp := make([]string, noOfValues)
+				tmp := make([][]byte, noOfValues)
 				for i:=0;i<int(noOfValues);i++ {
-					stringLength := leReader.Uint32(data[offset:offset + 4])
+					bytesLength := int(leReader.Uint32(data[offset:offset + 4]))
+
 					//fmt.Printf("String data length: %v Extracted Value: %v", stringLength, hex.Dump(data[offset:offset+4]))
 					offset += 4
 
+/*
 					tmpRunes := []rune{}
 					for j:=0; j < int(stringLength); j++ {
 						r, size := utf8.DecodeRune(data[offset:])
@@ -526,6 +528,14 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 						offset += size
 					}
 					tmp[i] = string(tmpRunes)
+*/
+					tmp[i] = data[offset:offset+bytesLength]
+					offset += bytesLength
+
+					padd := 4 - bytesLength % 4
+					if padd < 4 {
+						offset += padd
+					}
 				}
 
 				v.Data = tmp[0]
@@ -551,12 +561,19 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 
 				tmp := make([]string, noOfValues)
 				for i:=0;i<int(noOfValues);i++ {
-					stringLength := leReader.Uint32(data[offset:offset + 4])
+					stringLength := int(leReader.Uint32(data[offset:offset + 4]))
+
 					//fmt.Printf("String data length: %v Extracted Value: %v", stringLength, hex.Dump(data[offset:offset+4]))
 					offset += 4
 					/**
 					 * try to read stringLength chars and than calculate the number of bytes read
 					 */
+
+					tmpStr := data[offset:offset+stringLength]
+					offset += stringLength
+
+					//fmt.Println("String: ", string(tmpStr))
+/*
 
 					rdr := bytes.NewReader(data[offset:])
 					tmpStr := []byte{}
@@ -569,7 +586,7 @@ func decodeMsgPropertyList(data []byte) (MsgPropertyList, error) {
 						tmpStr = append(tmpStr, []byte(string(rune))...)
 						offset += runeBytesSize
 					}
-
+*/
 					// reads a multiple of 4; the rest must be padd it with 0x00
 					padd := 4 - len(tmpStr) % 4
 					if padd < 4 {
