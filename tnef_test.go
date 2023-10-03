@@ -41,7 +41,7 @@ func TestAttachments(t *testing.T) {
 		//	"boot.ini",
 		//	"data-before-name-body.rtf",
 		//}},
-		// {"garbage-at-end", []string{}, ""}, // panics
+		{"garbage-at-end", []string{}, ""},
 		//{"long-filename", []string{
 		//	"long-filename-body.rtf",
 		//}},
