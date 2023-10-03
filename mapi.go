@@ -327,7 +327,7 @@ const (
 	MAPIHasattach                             = 0x0E1B
 	MAPIBodyCrc                               = 0x0E1C
 	MAPINormalizedSubject                     = 0x0E1D
-	MAPIRtfInSync                             = 0x0E1F
+	MAPIRtfInSync                             = 0x0E1F //if the RTF body has been synchronized with the contents in the PidTagBody property
 	MAPIAttachSize                            = 0x0E20
 	MAPIAttachNum                             = 0x0E21
 	MAPIPreprocess                            = 0x0E22
@@ -423,6 +423,7 @@ const (
 	MAPIAttachLongPathname                    = 0x370D
 	MAPIAttachMimeTag                         = 0x370E
 	MAPIAttachAdditionalInfo                  = 0x370F
+	MAPITagAttachContentId  				  = 0x3712
 	MAPIDisplayType                           = 0x3900
 	MAPITemplateID                            = 0x3902
 	MAPIPrimaryCapability                     = 0x3904
@@ -556,4 +557,6 @@ const (
 	MAPIInitialDetailsPane                    = 0x3F08
 	MAPIIdSecureMin                           = 0x67F0
 	MAPIIdSecureMax                           = 0x67FF
+
+	MAPITagAttachmentHidden					  = 0x7FFE
 )
