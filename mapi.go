@@ -46,6 +46,7 @@ func decodeMapi(data []byte) ([]MAPIAttribute, error) {
 			offset += 4
 
 			if kind == 0 {
+				attrName = byteToInt(data[offset : offset+4])
 				offset += 4
 			} else if kind == 1 {
 				iidLen := byteToInt(data[offset : offset+4])
