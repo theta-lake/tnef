@@ -79,7 +79,15 @@ func decodeMapi(data []byte) ([]MAPIAttribute, error) {
 			}
 
 			// Read the data in
-			attrData = append(attrData, data[offset:offset+length]...)
+			// the original python code doesn't fail if it tries to
+			// read beyond the slice end, but go panics - mimic the
+			// python code
+			end := offset + length
+			if end >= len(data) {
+				attrData = append(attrData, data[offset:]...)
+			} else {
+				attrData = append(attrData, data[offset:offset+length]...)
+			}
 
 			offset += length
 			offset += (-length & 3)
