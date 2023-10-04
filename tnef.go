@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"io/ioutil"
+	"path"
 	"strings"
 	//"unicode/utf8"
 	"fmt"
@@ -69,6 +70,30 @@ type Attachment struct {
 	Title      string
 	Data       []byte
 	Properties MsgPropertyList
+}
+
+func (a *Attachment) setTitleFromPropsIfNeeded() {
+	if a.Title != "" {
+		return
+	}
+	for _, p := range a.Properties.Values {
+		if p.TagId != MAPIAttachFilename && p.TagId != MAPIAttachLongFilename {
+			continue
+		}
+		if p.DataType != "string" {
+			// just in case
+			continue
+		}
+		s := p.Data.(string)
+		if s == "" {
+			continue
+		}
+		newTitle := path.Base(s)
+		if newTitle != "/" {
+			a.Title = newTitle
+			return
+		}
+	}
 }
 
 /**
@@ -163,7 +188,10 @@ func (c *Data) AttachmentIsMimeRelated(a *Attachment) bool {
 func (a *Attachment) addAttr(obj tnefObject) {
 	switch obj.Name {
 	case ATTATTACHTITLE:
-		a.Title = strings.Replace(string(obj.Data), "\x00", "", -1)
+		s := strings.Replace(string(obj.Data), "\x00", "", -1)
+		if s != "" { // dont override with a blank string if set from the properties already
+			a.Title = strings.Replace(string(obj.Data), "\x00", "", -1)
+		}
 	case ATTATTACHDATA:
 		a.Data = obj.Data
 	default:
@@ -233,30 +261,30 @@ func Decode(data []byte) (*Data, error) {
 
 			if obj.Name == ATTATTACHMENT {
 				/*
-									MAPI ATTR ID: 3616 (0xe20), Type: 0x0003 -> PidTagAttachSize | value: 3285 (bytes)
-									MAPI ATTR ID: 12289 (0x3001), TAG Type: 30 (0x001e) -> PidTagDisplayName (type: 0x001f) | value: image001.jpg (same as PidTagAttachLongFilename)
-									MAPI ATTR ID: 14082 (0x3702), TAG Type: 258 (0x0102) -> PidTagAttachEncoding | value: empty!!?? ->  If the attachment is in MacBinary format, this property is set to
-				"{0x2A,86,48,86,F7,14,03,0B,01}"; otherwise, it is unset.
-									MAPI ATTR ID: 14083 (0x3703), TAG Type: 30 (0x001e) -> PidTagAttachExtension (type: 0x001e) | value: .jpg
-									MAPI ATTR ID: 14085 (0x3705), TAG Type: 3 (0x0003) -> PidTagAttachMethod | value: 1
-									MAPI ATTR ID: 14087 (0x3707), TAG Type: 30 (0x1e) -> PidTagAttachLongFilename (0x001F) | value: image001.jpg
-									MAPI ATTR ID: 14091 (0x370b), TAG Type: 3 (0x0003) -> PidTagRenderingPosition | value: -1 (-1 e de fapt 0xffffff, decoded as signed) ->  0xFFFFFFFF indicates a hidden attachment that is not to be rendered in the main text
-									MAPI ATTR ID: 14094 (0x370e), TAG Type: 30 (0x001e) -> PidTagAttachMimeTag | value: image/jpeg
-									MAPI ATTR ID: 14098 (0x3712), TAG Type: 30 (0x1e) -> PidTagAttachContentId | value: image001.jpg@01D49162.DB2DC760
-									MAPI ATTR ID: 14100 (0x3714), TAG Type: 3 (0x3) -> PidTagAttachFlags | value: 4 (4 means attRenderedInBody)
-									MAPI ATTR ID: 32762 (0x7ffa), TAG Type: 3 (0x3) -> PidTagAttachmentLinkId| value: 0 (must be 0, if is not overwriten)
-									MAPI ATTR ID: 32763 (0x7ffb), TAG Type: 64 (0x0040) ->	PidTagExceptionStartTime|value: 915151392000000000
-									MAPI ATTR ID: 32764 (0x7ffc), TAG Type: 64 (0x40) -> PidTagExceptionEndTime | value: 915151392000000000
-									MAPI ATTR ID: 32765 (0x7ffd), TAG Type: 3 (0x3) -> PidTagAttachmentFlags | value: 8
-									MAPI ATTR ID: 32766 (0x7ffe), TAG Type: 11 (0xb) -> PidTagAttachmentHidden| value: true
-									MAPI ATTR ID: 32767 (0x7fff), TAG Type: 11 (0xb) -> PidTagAttachmentContactPhoto | value: false
-									MAPI ATTR ID: 3617 (0x0e21), TAG Type: 3 (0x3) -> PidTagAttachNumber | value: 956325
-									MAPI ATTR ID: 4088 (0x0ff8), TAG Type: 258 (0x0102) -> PidTagMappingSignature | value: 28 78 81 160 198 126 89 69 167 247 18 51 167 63 155 237
-									MAPI ATTR ID: 4090 (0x0ffa), TAG Type: 258 (0x0102) -> ??? | value: 28 78 81 160 198 126 89 69 167 247 18 51 167 63 155 237
-									MAPI ATTR ID: 4094 (0xffe), TAG Type: 3 (0x3) -> PidTagObjectType | value: 7 (7 means Attachment object)
-									MAPI ATTR ID: 13325 (0x340d), TAG Type: 3 (0x3) -> PidTagStoreSupportMask | value: 245710845 ( Indicates whether string properties within the .msg file
-										are Unicode-encoded.)
-									MAPI ATTR ID: 13327 (0x340f), TAG Type: 3 (0x3) -> ??? | value: 245710845
+					MAPI ATTR ID: 3616 (0xe20), Type: 0x0003 -> PidTagAttachSize | value: 3285 (bytes)
+					MAPI ATTR ID: 12289 (0x3001), TAG Type: 30 (0x001e) -> PidTagDisplayName (type: 0x001f) | value: image001.jpg (same as PidTagAttachLongFilename)
+					MAPI ATTR ID: 14082 (0x3702), TAG Type: 258 (0x0102) -> PidTagAttachEncoding | value: empty!!?? ->  If the attachment is in MacBinary format, this property is set to
+						"{0x2A,86,48,86,F7,14,03,0B,01}"; otherwise, it is unset.
+					MAPI ATTR ID: 14083 (0x3703), TAG Type: 30 (0x001e) -> PidTagAttachExtension (type: 0x001e) | value: .jpg
+					MAPI ATTR ID: 14085 (0x3705), TAG Type: 3 (0x0003) -> PidTagAttachMethod | value: 1
+					MAPI ATTR ID: 14087 (0x3707), TAG Type: 30 (0x1e) -> PidTagAttachLongFilename (0x001F) | value: image001.jpg
+					MAPI ATTR ID: 14091 (0x370b), TAG Type: 3 (0x0003) -> PidTagRenderingPosition | value: -1 (-1 e de fapt 0xffffff, decoded as signed) ->  0xFFFFFFFF indicates a hidden attachment that is not to be rendered in the main text
+					MAPI ATTR ID: 14094 (0x370e), TAG Type: 30 (0x001e) -> PidTagAttachMimeTag | value: image/jpeg
+					MAPI ATTR ID: 14098 (0x3712), TAG Type: 30 (0x1e) -> PidTagAttachContentId | value: image001.jpg@01D49162.DB2DC760
+					MAPI ATTR ID: 14100 (0x3714), TAG Type: 3 (0x3) -> PidTagAttachFlags | value: 4 (4 means attRenderedInBody)
+					MAPI ATTR ID: 32762 (0x7ffa), TAG Type: 3 (0x3) -> PidTagAttachmentLinkId| value: 0 (must be 0, if is not overwriten)
+					MAPI ATTR ID: 32763 (0x7ffb), TAG Type: 64 (0x0040) ->	PidTagExceptionStartTime|value: 915151392000000000
+					MAPI ATTR ID: 32764 (0x7ffc), TAG Type: 64 (0x40) -> PidTagExceptionEndTime | value: 915151392000000000
+					MAPI ATTR ID: 32765 (0x7ffd), TAG Type: 3 (0x3) -> PidTagAttachmentFlags | value: 8
+					MAPI ATTR ID: 32766 (0x7ffe), TAG Type: 11 (0xb) -> PidTagAttachmentHidden| value: true
+					MAPI ATTR ID: 32767 (0x7fff), TAG Type: 11 (0xb) -> PidTagAttachmentContactPhoto | value: false
+					MAPI ATTR ID: 3617 (0x0e21), TAG Type: 3 (0x3) -> PidTagAttachNumber | value: 956325
+					MAPI ATTR ID: 4088 (0x0ff8), TAG Type: 258 (0x0102) -> PidTagMappingSignature | value: 28 78 81 160 198 126 89 69 167 247 18 51 167 63 155 237
+					MAPI ATTR ID: 4090 (0x0ffa), TAG Type: 258 (0x0102) -> ??? | value: 28 78 81 160 198 126 89 69 167 247 18 51 167 63 155 237
+					MAPI ATTR ID: 4094 (0xffe), TAG Type: 3 (0x3) -> PidTagObjectType | value: 7 (7 means Attachment object)
+					MAPI ATTR ID: 13325 (0x340d), TAG Type: 3 (0x3) -> PidTagStoreSupportMask | value: 245710845 ( Indicates whether string properties within the .msg file
+						are Unicode-encoded.)
+					MAPI ATTR ID: 13327 (0x340f), TAG Type: 3 (0x3) -> ??? | value: 245710845
 				*/
 
 				var err error
@@ -264,6 +292,11 @@ func Decode(data []byte) (*Data, error) {
 				if err != nil {
 					return nil, err
 				}
+
+				// I've found attachments where the name is saved in the
+				// long file name and no title attribute, so account for that
+				attachment.setTitleFromPropsIfNeeded()
+
 				//fmt.Printf("%v / %x\r\n", obj.Name, obj.Name)
 				//fmt.Printf("%v", obj.Data)
 			} else {
