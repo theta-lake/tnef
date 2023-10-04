@@ -1,10 +1,10 @@
 package tnef
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
-
-	"github.com/teamwork/test"
-	"github.com/teamwork/utils/sliceutil"
 )
 
 func TestAttachments(t *testing.T) {
@@ -83,8 +83,8 @@ func TestAttachments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
-			out, err := Decode(test.Read(t, "./testdata", tt.in+".tnef"))
-			if !test.ErrorContains(err, tt.wantErr) {
+			out, err := Decode(read(t, "./testdata", tt.in+".tnef"))
+			if !errorContains(err, tt.wantErr) {
 				t.Fatalf("wrong err\ngot:  %v\nwant: %v", err, tt.wantErr)
 			}
 			if err != nil {
@@ -104,10 +104,40 @@ func TestAttachments(t *testing.T) {
 				//}
 			}
 			for _, want := range tt.wantAttachments {
-				if !sliceutil.InStringSlice(titles, want) {
+				if !inStringSlice(titles, want) {
 					t.Errorf("did not find %#v in the attachments: %#v", want, titles)
 				}
 			}
 		})
 	}
+}
+
+func inStringSlice(list []string, str string) bool {
+	for _, item := range list {
+		if item == str {
+			return true
+		}
+	}
+	return false
+}
+
+func errorContains(out error, want string) bool {
+	if out == nil {
+		return want == ""
+	}
+	if want == "" {
+		return false
+	}
+	return strings.Contains(out.Error(), want)
+}
+
+func read(t *testing.T, paths ...string) []byte {
+	t.Helper()
+
+	path := filepath.Join(paths...)
+	file, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("cannot read %v: %v", path, err)
+	}
+	return file
 }
